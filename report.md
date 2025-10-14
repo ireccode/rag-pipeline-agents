@@ -51,3 +51,15 @@ This report outlines the key design decisions made during the extension of the `
 *   **Test Execution:** `pytest` is chosen as the testing framework due to its widespread adoption and flexibility. The assistant writes generated code and provided tests to disk, then executes `pytest` in the appropriate directory. This simulates a realistic development workflow.
 *   **Ollama Compatibility:** The `CodeAssistant` class includes a flag (`ollama_compatible`) to switch between OpenAI API and Ollama. This provides flexibility for users who prefer to run models locally, aligning with the trend of local LLM deployment.
 *   **Streaming Progress:** Code generation is streamed to the console, providing real-time feedback to the user about the code being produced.
+
+## 5. Automated Retrieval Accuracy Testing (`tests/test_deepeval_rag.py`)
+
+**Objective:** Integrate Confident-AI DeepEval for comprehensive RAG evaluation.
+
+**Design Decisions:**
+
+*   **DeepEval Framework:** DeepEval is used for its robust capabilities in evaluating LLM applications. It allows for the definition of custom metrics and test cases, providing a structured approach to assessing RAG performance.
+*   **Test Case Generation:** `LLMTestCase` objects are created from predefined `QA_PAIRS_FOR_DEEPEVAL`. Crucially, the `rag_qa` function was modified to return the actual `retrieved_contents` to DeepEval, ensuring that the evaluation accurately reflects the RAG system's behavior.
+*   **Evaluation Metrics:** A suite of DeepEval metrics is employed, including `AnswerRelevancyMetric`, `ContextRelevancyMetric`, `FaithfulnessMetric`, `BiasMetric`, and `ToxicityMetric`. These metrics provide a holistic view of the RAG system's quality.
+*   **LLM Judge Configuration:** The `LLM_JUDGE_MODEL` environment variable allows specifying the model used by DeepEval for judging. A custom `OllamaDeepEvalLLM` class is implemented to enable DeepEval to use Ollama models as judges, providing flexibility for local evaluation.
+*   **Report Generation:** DeepEval automatically generates detailed HTML/Markdown reports in the `/reports/` directory, offering visual insights into the evaluation results.

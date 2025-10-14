@@ -28,6 +28,12 @@ This repository extends the `mcp-crawl4ai-rag` project with several advanced AI 
     *   Streams progress and shows final pass/fail to console.
     *   Compatible with Ollama (code/config placeholders for model use).    
 
+5.  **Automated Retrieval Accuracy Testing (`tests/test_deepeval_rag.py`)**
+    *   Integrates Confident-AI DeepEval framework for evaluation.
+    *   Uses placeholder `<LLM_JUDGE_MODEL>` for the judge, defaulting to Ollama `deepseek-r1:8B`.
+    *   Outputs markdown/HTML reports in the `/reports/` directory.
+
+
 ## Getting Started
 
 ### Prerequisites
