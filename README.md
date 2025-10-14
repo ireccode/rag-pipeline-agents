@@ -16,6 +16,17 @@ This repository extends the `mcp-crawl4ai-rag` project with several advanced AI 
     *   QA endpoint with inline citations, aiming for ≤300ms median retrieval time.
     *   Automated QA script (`tests/test_rag_accuracy.py`) with ≥20 graded question-answer pairs and top-5 retrieval accuracy reporting.
 
+3.  **Autonomous Planning Agent (`src/agent.py`)**
+    *   Accepts natural language prompts (e.g., "Plan a 2-day trip to...").
+    *   Calls ≥2 external tools/APIs (mock or real, with `<EXTERNAL_API_URL>` placeholders).
+    *   Logs reasoning steps (scratchpad).
+    *   Outputs results as JSON in a documented schema, enforcing user constraints.
+
+4.  **Self-Healing Code Assistant (`src/code_assistant.py`)**
+    *   Accepts natural-language coding tasks, generates code, writes to disk, and runs tests (pytest).
+    *   Captures errors and retries on failure (up to three times).
+    *   Streams progress and shows final pass/fail to console.
+    *   Compatible with Ollama (code/config placeholders for model use).    
 
 ## Getting Started
 
