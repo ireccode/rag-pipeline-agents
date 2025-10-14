@@ -34,6 +34,11 @@ This repository extends the `mcp-crawl4ai-rag` project with several advanced AI 
     *   Outputs markdown/HTML reports in the `/reports/` directory.
 
 
+6.  **Containerization and Streamlit Dashboard (Stretch Goal)**
+    *   `docker-compose.yml` for all backend services (DB, APIs, dashboard).
+    *   Streamlit dashboard (`dashboard/app.py`) for visualizing latency/cost, retrieval curves, and agent performance.
+    *   All configurations as `.env.sample` with placeholders.
+
 ## Getting Started
 
 ### Prerequisites
