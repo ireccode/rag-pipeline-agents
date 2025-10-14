@@ -26,10 +26,12 @@ services:
       SUPABASE_URL: postgres://postgres:postgres@db:5432/postgres # Connect to the db service
       SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
       CORPUS_URL: ${CORPUS_URL}
-      EXTERNAL_API_URL: ${EXTERNAL_API_URL}
+      #EXTERNAL_API_URL: ${EXTERNAL_API_URL}
+      FLIGHTS_API_URL: ${FLIGHTS_API_URL}
+      HOTELS_API_URL: ${HOTELS_API_URL}
       LLM_JUDGE_MODEL: ${LLM_JUDGE_MODEL}
       OLLAMA_BASE_URL: http://ollama:11434/v1
-      OLLAMA_MODEL_NAME: deepseek-coder:latest
+      OLLAMA_MODEL_NAME: gemma3:4b
     volumes:
       - ./reports:/app/reports # Mount reports directory
       - ./deepeval_reports:/app/deepeval_reports # Mount DeepEval reports directory

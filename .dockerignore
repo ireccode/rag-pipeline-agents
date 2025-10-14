@@ -1,4 +1,39 @@
+# Build / packaging
 crawl4ai_mcp.egg-info
-__pycache__
-.venv
+dist
+build
+pip-wheel-metadata
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments and local env files
+.venv/
+venv/
 .env
+.env.*
+
+# Node
+node_modules/
+
+# Git / editor / OS
+.git
+.gitignore
+.gitattributes
+.vscode
+.DS_Store
+
+# Secrets / keys
+*.pem
+*.key
+secrets.json
+
+# Databases / test artifacts
+*.sqlite3
+*.db
+
+# Tests (optional - exclude large test datasets from image)
+tests/

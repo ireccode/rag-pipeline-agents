@@ -68,7 +68,9 @@ This repository extends the `mcp-crawl4ai-rag` project with several advanced AI 
     SUPABASE_URL=
     SUPABASE_SERVICE_KEY=
     CORPUS_URL=
-    EXTERNAL_API_URL=
+    # EXTERNAL_API_URL=
+    FLIGHTS_API_URL=
+    HOTELS_API_URL=
     LLM_JUDGE_MODEL=
     ```
 

@@ -23,10 +23,12 @@ ENV MODEL_NAME="<MODEL_NAME>"
 ENV SUPABASE_URL="<SUPABASE_URL>"
 ENV SUPABASE_SERVICE_KEY="<SUPABASE_SERVICE_KEY>"
 ENV CORPUS_URL="<CORPUS_URL>"
-ENV EXTERNAL_API_URL="<EXTERNAL_API_URL>"
+#ENV EXTERNAL_API_URL="<EXTERNAL_API_URL>"
+ENV HOTELS_API_URL="<HOTELS_API_URL>"
+ENV FLIGHTS_API_URL="<FLIGHTS_API_URL>"
 ENV LLM_JUDGE_MODEL="<LLM_JUDGE_MODEL>"
 ENV OLLAMA_BASE_URL="http://ollama:11434/v1" # Assuming Ollama runs in a separate container
-ENV OLLAMA_MODEL_NAME="deepseek-coder:latest"
+ENV OLLAMA_MODEL_NAME="gemma3:4b"
 
 # Command to run the application (e.g., a FastAPI/Flask app or a script )
 # This will be overridden by the command in docker-compose.yml for specific services

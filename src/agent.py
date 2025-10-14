@@ -10,7 +10,12 @@ load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1" )
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4.1-mini")
-EXTERNAL_API_URL = os.getenv("EXTERNAL_API_URL", "http://localhost:8080/mock_api" ) # Placeholder for external API
+# EXTERNAL_API_URL = os.getenv("EXTERNAL_API_URL", "http://localhost:8080/mock_api" ) # Placeholder for external API
+# Prefer dedicated public APIs for flights and hotels (override via env vars)
+FLIGHTS_API_URL = os.getenv("FLIGHTS_API_URL", "https://api.skypicker.com")  # Kiwi / Skypicker flights search
+HOTELS_API_URL = os.getenv("HOTELS_API_URL", "https://api.opentripmap.com/0.1/en/places")  # OpenTripMap provides POI/place data (useful for hotel location info)
+
+
 
 # Initialize OpenAI client
 client = OpenAI(api_key=OPENAI_API_KEY, base_url=OPENAI_BASE_URL)
@@ -32,16 +37,16 @@ class ExternalTool:
             return {"hotel": {"id": "HT202", "location": params.get("location"), "check_in": params.get("check_in"), "check_out": params.get("check_out"), "price_per_night": 100}}
         return {"status": "success", "tool_name": self.name, "params": params}
 
-# Define mock external tools
+# Define available tools
 flight_search_tool = ExternalTool(
     name="FlightSearch",
     description="Searches for flights between an origin and destination on a specific date. Parameters: origin (str), destination (str), date (str).",
-    api_url=f"{EXTERNAL_API_URL}/flights"
+    api_url=f"{FLIGHTS_API_URL}/flights"
 )
 hotel_booking_tool = ExternalTool(
     name="HotelBooking",
     description="Books a hotel in a specified location for given check-in and check-out dates. Parameters: location (str), check_in (str), check_out (str).",
-    api_url=f"{EXTERNAL_API_URL}/hotels"
+    api_url=f"{HOTELS_API_URL}"
 )
 
 available_tools = {
