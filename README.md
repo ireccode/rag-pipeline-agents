@@ -9,6 +9,13 @@ This repository extends the `mcp-crawl4ai-rag` project with several advanced AI 
     *   Persistence of the last N=10 messages in SQLite.
     *   Logging and display of prompt tokens, completion tokens, cost (USD), and latency (ms) per turn.
 
+2.  **High-Performance Retrieval-Augmented QA (`src/rag.py`)**
+    *   Web crawling and ingestion for a minimum of 50MB from a configurable `<CORPUS_URL>`.
+    *   Intelligent chunking, embedding (using `sentence-transformers`), and vector storage in Supabase (or pgvector).
+    *   Configurable advanced strategies: `USE_HYBRID_SEARCH` and `USE_RERANKING`.
+    *   QA endpoint with inline citations, aiming for ≤300ms median retrieval time.
+    *   Automated QA script (`tests/test_rag_accuracy.py`) with ≥20 graded question-answer pairs and top-5 retrieval accuracy reporting.
+
 
 ## Getting Started
 
