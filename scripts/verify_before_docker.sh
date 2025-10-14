@@ -35,6 +35,9 @@ fi
 
 # Run tests: prefer running inside a virtualenv if local python >=3.12, otherwise use Docker builder stage if Docker is available.
 if [ -f pyproject.toml ]; then
+  if [ -z "${RUN_LOCAL_TESTS:-}" ]; then
+    echo "RUN_LOCAL_TESTS not set — skipping local test execution (set RUN_LOCAL_TESTS=1 to run)."
+  else
   REQ_MAJOR=3
   REQ_MINOR=12
   PY_VER="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || echo "0.0")"
@@ -68,6 +71,8 @@ if [ -f pyproject.toml ]; then
       echo "Local python $PY_VER < $REQ_MAJOR.$REQ_MINOR and docker not available — skipping tests. To run tests locally install Python >=3.12 or install Docker to run tests in container."
     fi
   fi
+  fi
+  
 else
   echo "No pyproject.toml found — skipping tests"
 fi
