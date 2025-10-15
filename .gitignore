@@ -26,7 +26,6 @@ examples/
 scripts/
 dashboard/
 PLANNING.md
-verify_dashboard
 .env
 .venv
 __pycache__
