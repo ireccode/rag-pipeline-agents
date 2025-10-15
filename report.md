@@ -5,77 +5,41 @@
 
 This report outlines the key design decisions made during the extension of the `mcp-crawl4ai-rag` repository to incorporate new AI capabilities and meet the specified assessment requirements. The goal was to create a modular, extensible, and assessment-compliant system with clear configuration for various components.
 
-## 1. Conversational Core (`src/chat.py`)
 
-**Objective:** Implement a streaming chat CLI with message persistence and performance metrics.
+##  MCP Crawl4AI RAG Server Analysis (`src/crawl4ai_mcp.py`)
 
-**Design Decisions:**
+**Objective:** Extend the original `mcp-crawl4ai-rag` repository for comprehensive web crawling, RAG capabilities, and AI hallucination detection.
 
-*   **Streaming Output:** The `openai` library's `stream=True` parameter was utilized to enable incremental token display, providing a more responsive user experience. This is crucial for interactive CLI applications where users expect immediate feedback.
-*   **Message Persistence:** SQLite was chosen for message persistence due to its lightweight nature and ease of integration, making it suitable for local development and testing. A `deque` (double-ended queue) was considered for in-memory persistence, but SQLite offers better durability across sessions. The `MAX_MESSAGES` constant ensures that only the last 10 messages are stored, preventing the database from growing indefinitely.
-*   **Metrics Logging:** Key metrics such as prompt tokens, completion tokens, estimated cost, and latency are calculated and displayed after each turn. Token counting is implemented using `tiktoken` for accuracy, which is more robust than simple word counts. Cost estimation uses placeholder values that can be updated with actual model pricing.
-*   **Environment Variables:** All sensitive information and configurable parameters (API keys, base URLs, model names) are loaded from environment variables using `python-dotenv`, ensuring secure and flexible deployment.
+**Design Decisions & Trade-offs:**
 
-## 2. High-Performance Retrieval-Augmented QA (`src/rag.py`)
+**Core Architecture Extension:**
+- **MCP Protocol Integration:** Built on FastMCP framework for standardized tool interfaces. Enables seamless integration with AI assistants (Claude, Windsurf) via SSE/Stdio transports.
+- **Modular Tool Design:** Separate tools for crawling (`crawl_single_page`, `smart_crawl_url`), querying (`perform_rag_query`, `get_available_sources`), and validation (`check_ai_script_hallucinations`).
 
-**Objective:** Develop a robust RAG system with crawling, intelligent chunking, embedding, vector storage, and a QA endpoint with inline citations.
+**Crawling Strategy Enhancements:**
+- **Intelligent URL Detection:** Auto-detects sitemaps, text files (.txt), and regular webpages. Trade-off: Increased complexity vs. specialized crawlers, but provides flexibility for diverse content sources.
+- **Parallel Processing:** Uses `asyncio` and `ThreadPoolExecutor` for concurrent crawling and code example processing. Benefits: Faster ingestion of large sites. Trade-offs: Higher memory usage and potential rate-limiting issues.
 
-**Design Decisions:**
+**RAG System Integration:**
+- **Supabase Vector Storage:** Leverages existing `utils.py` functions for document storage and retrieval. Trade-off: Tight coupling with project-specific utilities vs. generic implementation.
+- **Hybrid Search Support:** Configurable keyword + vector search. Benefits: Improved recall. Trade-offs: Increased query latency and complexity.
 
-*   **Web Crawling and Ingestion:** `aiohttp` is used for asynchronous web requests, enabling efficient crawling of multiple pages. `BeautifulSoup` handles HTML parsing and text extraction. The crawler respects `max_pages`, `max_depth`, and `min_content_size_mb` to control the scope of ingestion.
-*   **Intelligent Chunking:** A basic word-based chunking strategy is implemented. While simple, it serves as a foundation. For production, more advanced semantic chunking (e.g., based on document structure or LLM-guided segmentation ) would be beneficial. Chunk overlap is included to maintain context across chunks.
-*   **Embedding and Vector Storage:** `sentence-transformers` with `all-MiniLM-L6-v2` is chosen for generating embeddings due to its balance of performance and efficiency, suitable for local execution. Supabase with `pgvector` is selected as the vector store, offering a scalable and managed solution for vector similarity search. The `setup_supabase_vector_store` function provides guidance on necessary database schema.
-*   **RAG Advanced Strategies:** `USE_HYBRID_SEARCH` and `USE_RERANKING` are included as configurable flags. While their full implementation is noted as placeholders, their inclusion demonstrates the architectural consideration for advanced RAG techniques. Hybrid search would combine keyword and vector search, and reranking would use a cross-encoder model to improve result relevance.
-*   **QA Endpoint with Citations:** The `rag_qa` function orchestrates the retrieval and generation process. It fetches relevant documents from Supabase, constructs a prompt with the retrieved context, and uses the OpenAI API to generate an answer. Inline citations are generated by extracting URLs from the metadata of retrieved documents.
-*   **DeepEval Integration:** The `rag_qa` function was modified to return the `retrieved_contents` explicitly, enabling `tests/test_deepeval_rag.py` to accurately evaluate the RAG system's performance using the actual context provided to the LLM.
+**AI Hallucination Detection:**
+- **Neo4j Knowledge Graph:** Optional integration for validating AI-generated code against real repositories. Trade-off: Requires Neo4j setup (local/cloud) vs. simpler validation methods. Benefits: High-accuracy hallucination detection for coding tasks.
+- **Repository Parsing:** Automated GitHub repo analysis into graph structures. Trade-off: Slow for large codebases vs. faster but less accurate validation.
 
+**Performance Optimizations:**
+- **Contextual Embeddings:** Optional LLM-enhanced embeddings for better semantic understanding. Trade-off: Higher API costs vs. standard embeddings.
+- **Chunking Strategy:** Intelligent markdown-aware chunking preserving code blocks and sections. Benefits: Better context preservation. Trade-offs: More complex than simple fixed-size chunks.
 
-## 3. Autonomous Planning Agent (`src/agent.py`)
+**Integration Points:**
+- **Task 1 (Chat):** Provides RAG context for conversational queries via `search_documents` in `utils.py`.
+- **Task 2 (RAG QA):** Core crawling and retrieval functionality for the QA endpoint.
+- **Code Assistant:** Hallucination detection for generated code validation.
 
-**Objective:** Create an agent capable of accepting natural language prompts, calling external tools, logging reasoning, and outputting structured JSON.
+**Trade-offs Summary:**
+- **Flexibility vs. Complexity:** Highly configurable but requires multiple environment variables.
+- **Performance vs. Accuracy:** Advanced features (reranking, knowledge graphs) improve results but increase latency and resource usage.
+- **Scalability vs. Simplicity:** Supports large-scale crawling but may require infrastructure scaling.
 
-**Design Decisions:**
-
-*   **Tool-Use Architecture:** The agent leverages OpenAI's function calling capabilities. `tool_definitions` are provided to the LLM, allowing it to decide when and how to call external tools. Mock `ExternalTool` classes simulate real API interactions, making the agent testable without requiring live external services.
-*   **Reasoning Scratchpad:** A `scratchpad` attribute logs the agent's internal thought process and actions, which is crucial for debugging, understanding agent behavior, and ensuring transparency. This helps in tracing the steps taken by the agent to arrive at a solution.
-*   **Structured Output:** The agent is instructed to output its final plan in a predefined JSON schema. This ensures consistency and machine-readability of the agent's deliverables, facilitating integration with other systems or UIs.
-*   **Constraint Enforcement:** The system message guides the LLM to consider and enforce user-provided constraints, making the agent more robust and aligned with user requirements.
-
-## 4. Self-Healing Code Assistant (`src/code_assistant.py`)
-
-**Objective:** Build a code assistant that generates code, runs tests, captures errors, and retries on failure.
-
-**Design Decisions:**
-
-*   **Iterative Refinement:** The `self_heal` method implements a retry mechanism (up to `retry_limit` times). If tests fail, the test output is fed back into the LLM as part of the `task_description` for the next generation attempt, allowing the model to learn from its mistakes and refine the code.
-*   **Test Execution:** `pytest` is chosen as the testing framework due to its widespread adoption and flexibility. The assistant writes generated code and provided tests to disk, then executes `pytest` in the appropriate directory. This simulates a realistic development workflow.
-*   **Ollama Compatibility:** The `CodeAssistant` class includes a flag (`ollama_compatible`) to switch between OpenAI API and Ollama. This provides flexibility for users who prefer to run models locally, aligning with the trend of local LLM deployment.
-*   **Streaming Progress:** Code generation is streamed to the console, providing real-time feedback to the user about the code being produced.
-
-## 5. Automated Retrieval Accuracy Testing (`tests/test_deepeval_rag.py`)
-
-**Objective:** Integrate Confident-AI DeepEval for comprehensive RAG evaluation.
-
-**Design Decisions:**
-
-*   **DeepEval Framework:** DeepEval is used for its robust capabilities in evaluating LLM applications. It allows for the definition of custom metrics and test cases, providing a structured approach to assessing RAG performance.
-*   **Test Case Generation:** `LLMTestCase` objects are created from predefined `QA_PAIRS_FOR_DEEPEVAL`. Crucially, the `rag_qa` function was modified to return the actual `retrieved_contents` to DeepEval, ensuring that the evaluation accurately reflects the RAG system's behavior.
-*   **Evaluation Metrics:** A suite of DeepEval metrics is employed, including `AnswerRelevancyMetric`, `ContextRelevancyMetric`, `FaithfulnessMetric`, `BiasMetric`, and `ToxicityMetric`. These metrics provide a holistic view of the RAG system's quality.
-*   **LLM Judge Configuration:** The `LLM_JUDGE_MODEL` environment variable allows specifying the model used by DeepEval for judging. A custom `OllamaDeepEvalLLM` class is implemented to enable DeepEval to use Ollama models as judges, providing flexibility for local evaluation.
-*   **Report Generation:** DeepEval automatically generates detailed HTML/Markdown reports in the `/reports/` directory, offering visual insights into the evaluation results.
-
-## 6. Containerization and Streamlit Dashboard
-
-**Objective:** Provide a containerized environment and a Streamlit dashboard for monitoring.
-
-**Design Decisions:**
-
-*   **`docker-compose.yml`:** A `docker-compose.yml` file orchestrates the entire application stack, including a Supabase-compatible PostgreSQL database with `pgvector`, the main application services (RAG, Agent, Code Assistant), and the Streamlit dashboard. This simplifies deployment and ensures environment consistency.
-*   **Modular Dockerfiles:** Separate `Dockerfile`s are provided for the main application and the Streamlit dashboard, promoting modularity and efficient image building.
-*   **Volume Mounting:** Volumes are used to persist database data (`db_data`) and to share reports (`./reports` and `./deepeval_reports`) between the application container and the dashboard container. This allows the dashboard to visualize results generated by the RAG evaluation scripts.
-*   **Streamlit Dashboard (`dashboard/app.py`):** A Streamlit application provides a user-friendly interface for visualizing performance metrics. It includes sections for conversational core metrics (placeholder), RAG QA evaluation results (parsed from JSON reports), and placeholders for agent and code assistant performance. `plotly.express` is used for interactive visualizations.
-*   **`.env.sample`:** A `.env.sample` file with clear placeholders is provided to guide users in configuring their environment variables securely.
-
-## Conclusion
-
-These design decisions aim to create a comprehensive, extensible, and well-documented AI system. The modular architecture allows for independent development and testing of each component, while containerization ensures ease of deployment. The integration of evaluation frameworks like DeepEval and a monitoring dashboard provides the necessary tools for continuous improvement and performance assessment.
+This extension transforms the original single-purpose crawler into a comprehensive RAG and AI validation platform, balancing advanced features with practical deployment considerations.

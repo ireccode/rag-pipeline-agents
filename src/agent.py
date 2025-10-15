@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import re
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -9,9 +10,7 @@ load_dotenv()
 # Configuration from environment variables
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1" )
-MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4.1-mini")
-# EXTERNAL_API_URL = os.getenv("EXTERNAL_API_URL", "http://localhost:8080/mock_api" ) # Placeholder for external API
-# Prefer dedicated public APIs for flights and hotels (override via env vars)
+MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini")
 FLIGHTS_API_URL = os.getenv("FLIGHTS_API_URL", "https://api.skypicker.com")  # Kiwi / Skypicker flights search
 HOTELS_API_URL = os.getenv("HOTELS_API_URL", "https://api.opentripmap.com/0.1/en/places")  # OpenTripMap provides POI/place data (useful for hotel location info)
 
@@ -105,18 +104,21 @@ class AutonomousAgent:
         self._log_reasoning(f"Received prompt: {prompt}")
         if constraints:
             self._log_reasoning(f"Applying constraints: {constraints}")
+            constraint_text = "\n".join([f"- {c}" for c in constraints])
+        else:
+            constraint_text = "No specific constraints provided."
 
         system_message = {"role": "system", "content": (
             "You are an autonomous planning agent. Your goal is to fulfill user requests by planning a sequence of actions, "
             "potentially involving external tools. Think step-by-step. "
-            "If external tools are needed, use the provided `tool_code` to call them. "
+            "If external tools are needed, use the provided tools to call them. "
             "After executing tools, synthesize the results and provide a final answer in JSON format. "
             "The final JSON output should adhere to the following schema: "
-            "{\"plan_summary\": \"A summary of the trip plan.\", \"details\": [...], \"cost_estimate\": \"$X.XX\"}. "
-            "Details should be a list of objects, each representing a planned activity or booking. "
-            "Always consider user constraints. If a constraint cannot be met, state it clearly."
+            "{\"plan_summary\": \"A summary of the trip plan.\", \"itinerary\": [{\"day\": 1, \"activities\": [...]}, ...], \"cost_breakdown\": {\"flights\": X, \"hotels\": Y, \"total\": Z}, \"constraints_met\": true/false}. "
+            "Always consider user constraints. If a constraint cannot be met, state it clearly in the response."
         )}
-        self.messages = [system_message, {"role": "user", "content": prompt}]
+        user_message_content = f"{prompt}\n\nConstraints:\n{constraint_text}"
+        self.messages = [system_message, {"role": "user", "content": user_message_content}]
 
         max_iterations = 5 # Prevent infinite loops
         for i in range(max_iterations):
@@ -132,8 +134,9 @@ class AutonomousAgent:
                 self.messages.append(response_message)
 
                 if response_message.tool_calls:
-                    self._log_reasoning(f"Tool calls detected: {response_message.tool_calls}")
-                    tool_outputs = []
+                    self._log_reasoning(f"Tool calls detected: {len(response_message.tool_calls)} tool(s)")
+                    
+                    # Execute all tool calls
                     for tool_call in response_message.tool_calls:
                         function_name = tool_call.function.name
                         function_args = json.loads(tool_call.function.arguments)
@@ -141,35 +144,53 @@ class AutonomousAgent:
                         if function_name in available_tools:
                             tool_instance = available_tools[function_name]
                             tool_output = tool_instance.call(function_args)
-                            tool_outputs.append({
-                                "tool_call_id": tool_call.id,
-                                "output": tool_output
-                            })
                             self._log_reasoning(f"Tool {function_name} executed. Output: {tool_output}")
                         else:
-                            tool_outputs.append({"tool_call_id": tool_call.id, "output": f"Error: Tool {function_name} not found."})
+                            tool_output = {"error": f"Tool {function_name} not found."}
                             self._log_reasoning(f"Error: Tool {function_name} not found.")
 
-                    # Add tool outputs to messages for the next turn
-                    for output in tool_outputs:
+                        # Add tool output to messages immediately
                         self.messages.append({
-                            "tool_call_id": output["tool_call_id"],
+                            "tool_call_id": tool_call.id,
                             "role": "tool",
                             "name": function_name,
-                            "content": json.dumps(output["output"]),
+                            "content": json.dumps(tool_output),
                         })
 
                 else:
                     # If no tool calls, it's likely the final response
-                    self._log_reasoning("No tool calls. Assuming final response.")
-                    try:
-                        # Attempt to parse as JSON
-                        final_output = json.loads(response_message.content)
-                        return final_output, self.scratchpad
-                    except json.JSONDecodeError:
-                        # If not JSON, try to guide it to produce JSON
-                        self._log_reasoning("Final response not in JSON. Guiding agent to produce JSON.")
-                        self.messages.append({"role": "user", "content": "Please provide the final plan in the specified JSON format."})
+                    self._log_reasoning("No tool calls. Checking for final response.")
+                    
+                    if response_message.content:
+                        content = response_message.content.strip()
+                        self._log_reasoning(f"Response content: {content[:200]}...")
+                        
+                        # Try to extract JSON from the response
+                        try:
+                            # First, try direct JSON parsing
+                            final_output = json.loads(content)
+                            self._log_reasoning("Successfully parsed JSON response.")
+                            return final_output, self.scratchpad
+                        except json.JSONDecodeError:
+                            # Try to extract JSON from markdown code blocks
+                            import re
+                            json_match = re.search(r'```(?:json)?\s*({.*?})\s*```', content, re.DOTALL)
+                            if json_match:
+                                try:
+                                    final_output = json.loads(json_match.group(1))
+                                    self._log_reasoning("Successfully extracted JSON from code block.")
+                                    return final_output, self.scratchpad
+                                except json.JSONDecodeError:
+                                    pass
+                            
+                            # If still not JSON, guide the agent
+                            self._log_reasoning("Response not in valid JSON format. Requesting JSON output.")
+                            self.messages.append({
+                                "role": "user", 
+                                "content": "Please provide ONLY the final trip plan as a valid JSON object with the following structure: {\"plan_summary\": \"...\", \"itinerary\": [{\"day\": 1, \"activities\": [...]}], \"cost_breakdown\": {\"flights\": X, \"hotels\": Y, \"total\": Z}, \"constraints_met\": true/false}. Do not include any markdown formatting or explanatory text."
+                            })
+                    else:
+                        self._log_reasoning("Empty response received.")
 
             except Exception as e:
                 self._log_reasoning(f"An error occurred during agent execution: {e}")
@@ -181,13 +202,31 @@ class AutonomousAgent:
 
 if __name__ == "__main__":
     agent = AutonomousAgent()
-    user_prompt = "Plan a 2-day trip to Paris for a weekend in July 2026. I need flights from London and a hotel booking."
-    constraints = ["Total budget under $1000", "Hotel must be near Eiffel Tower"]
+    # Example: Plan a 2-day trip to Auckland for under NZ$500
+    user_prompt = "Plan a 2-day trip to Auckland for under NZ$500"
+    constraints = [
+        "Budget: under NZ$500",
+        "Duration: 2 days",
+        "Include flights and accommodation"
+    ]
+
+    print("=" * 60)
+    print("AUTONOMOUS AGENT - TASK 3: Trip Planning")
+    print("=" * 60)
+    print(f"Prompt: {user_prompt}")
+    print(f"Constraints: {constraints}")
+    print("=" * 60)
+    print()
 
     result, scratchpad = agent.plan_and_execute(user_prompt, constraints)
 
-    print("\n--- Final Result ---")
+    print("\n" + "=" * 60)
+    print("--- Final Itinerary (JSON) ---")
+    print("=" * 60)
     print(json.dumps(result, indent=2))
-    print("\n--- Scratchpad ---")
+    print("\n" + "=" * 60)
+    print("--- Agent Scratchpad (Reasoning Log) ---")
+    print("=" * 60)
     for step in scratchpad:
         print(step)
+    print("=" * 60)

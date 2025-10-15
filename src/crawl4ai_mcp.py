@@ -50,7 +50,7 @@ from hallucination_reporter import HallucinationReporter
 
 # Load environment variables from the project root .env file
 project_root = Path(__file__).resolve().parent.parent
-dotenv_path = project_root / '.env'
+dotenv_path = project_root / 'env'
 
 # Force override of existing environment variables
 load_dotenv(dotenv_path, override=True)
@@ -215,12 +215,23 @@ async def crawl4ai_lifespan(server: FastMCP) -> AsyncIterator[Crawl4AIContext]:
                 print(f"Error closing repository extractor: {e}")
 
 # Initialize FastMCP server
+# Resolve host and port environment variables safely. Pydantic expects `port` to be an int
+# and an empty string (e.g. when present in an env file but unset) will fail validation.
+_host = os.getenv("HOST") or "0.0.0.0"
+_port_env = os.getenv("PORT")
+try:
+    # If PORT is None or empty string, fall back to default 8051
+    _port = int(_port_env) if _port_env not in (None, "") else 8051
+except (ValueError, TypeError):
+    # If parsing fails, use default port
+    _port = 8051
+
 mcp = FastMCP(
     "mcp-crawl4ai-rag",
     description="MCP server for RAG and web crawling with Crawl4AI",
     lifespan=crawl4ai_lifespan,
-    host=os.getenv("HOST", "0.0.0.0"),
-    port=os.getenv("PORT", "8051")
+    host=_host,
+    port=_port
 )
 
 def rerank_results(model: CrossEncoder, query: str, results: List[Dict[str, Any]], content_key: str = "content") -> List[Dict[str, Any]]:

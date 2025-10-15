@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.dashboard
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./src:/app/src
+      - ./metrics.db:/app/metrics.db
+    environment:
+      - PYTHONUNBUFFERED=1
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}      
+    command: streamlit run src/dashboard.py --server.port=8501 --server.address=0.0.0.0
+    networks:
+      - rag-network
+
+  code-assistant:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./src:/app/src
+      - ./metrics.db:/app/metrics.db
+      - ./.env:/app/.env
+    environment:
+      - PYTHONUNBUFFERED=1
+    env_file:
+      - .env
+    networks:
+      - rag-network
+    profiles:
+      - tools
+
+networks:
+  rag-network:
+    driver: bridge

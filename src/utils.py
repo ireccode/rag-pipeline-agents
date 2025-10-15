@@ -2,17 +2,52 @@
 Utility functions for the Crawl4AI MCP server.
 """
 import os
-import concurrent.futures
+import time
 from typing import List, Dict, Any, Optional, Tuple
 import json
 from supabase import create_client, Client
 from urllib.parse import urlparse
+import tiktoken
 import openai
 import re
-import time
 
 # Load OpenAI API key for embeddings
 openai.api_key = os.getenv("OPENAI_API_KEY")
+
+def count_tokens(text, model_name="gpt-4o"):
+    try:
+        encoding = tiktoken.encoding_for_model(model_name)
+    except KeyError:
+        encoding = tiktoken.get_encoding("cl100k_base") # Fallback for unknown models
+    return len(encoding.encode(text))
+
+def estimate_cost(prompt_tokens: int, completion_tokens: int, model_name: str = "gpt-4o") -> float:
+    """
+    Estimate the cost of an API call based on token counts.
+    
+    Args:
+        prompt_tokens: Number of prompt tokens
+        completion_tokens: Number of completion tokens
+        model_name: Model name (default: gpt-4o)
+        
+    Returns:
+        Estimated cost in USD
+    """
+    # Pricing as of 2024 (per 1M tokens)
+    pricing = {
+        "gpt-4o": {"prompt": 2.50, "completion": 10.00},
+        "gpt-4o-mini": {"prompt": 0.150, "completion": 0.600},
+        "gpt-4-turbo": {"prompt": 10.00, "completion": 30.00},
+        "gpt-3.5-turbo": {"prompt": 0.50, "completion": 1.50},
+    }
+    
+    # Default to gpt-4o pricing if model not found
+    model_pricing = pricing.get(model_name, pricing["gpt-4o"])
+    
+    prompt_cost = (prompt_tokens / 1_000_000) * model_pricing["prompt"]
+    completion_cost = (completion_tokens / 1_000_000) * model_pricing["completion"]
+    
+    return prompt_cost + completion_cost
 
 def get_supabase_client() -> Client:
     """
@@ -332,8 +367,13 @@ def search_documents(
     Returns:
         List of matching documents
     """
+    start_time = time.time()
+    
     # Create embedding for the query
     query_embedding = create_embedding(query)
+    
+    # Count tokens for the query (as "prompt tokens")
+    prompt_tokens = count_tokens(query)
     
     # Execute the search using the match_crawled_pages function
     try:
@@ -349,9 +389,26 @@ def search_documents(
         
         result = client.rpc('match_crawled_pages', params).execute()
         
+        end_time = time.time()
+        latency_ms = (end_time - start_time) * 1000
+        
+        # Estimate cost (using embedding as completion for simplicity)
+        completion_tokens = 0  # No completion tokens in search
+        total_cost = estimate_cost(prompt_tokens, completion_tokens)
+        
+        # Log and display metrics
+        print(f"\n--- RAG Search Metrics ---")
+        print(f"Prompt Tokens: {prompt_tokens}")
+        print(f"Completion Tokens: {completion_tokens}")
+        print(f"Estimated Cost: ${total_cost:.6f} USD")
+        print(f"Latency: {latency_ms:.2f} ms")
+        print(f"-------------------------")
+        
         return result.data
     except Exception as e:
-        print(f"Error searching documents: {e}")
+        end_time = time.time()
+        latency_ms = (end_time - start_time) * 1000
+        print(f"Error searching documents after {latency_ms:.2f} ms: {e}")
         return []
 
 

@@ -34,7 +34,6 @@ services:
       OLLAMA_MODEL_NAME: gemma3:4b
     volumes:
       - ./reports:/app/reports # Mount reports directory
-      - ./deepeval_reports:/app/deepeval_reports # Mount DeepEval reports directory
     depends_on:
       - db
 
@@ -56,10 +55,9 @@ services:
       - "8501:8501"
     environment:
       SUPABASE_URL: postgres://postgres:postgres@db:5432/postgres # Connect to the db service
-      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY}    
     volumes:
       - ./reports:/app/reports # Mount reports directory
-      - ./deepeval_reports:/app/deepeval_reports # Mount DeepEval reports directory
     depends_on:
       - db
       - app

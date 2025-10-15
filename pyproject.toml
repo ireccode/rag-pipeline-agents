@@ -16,7 +16,5 @@ dependencies = [
     "aiohttp",
     "beautifulsoup4",
     "supabase",
-    "pytest",
-    "deepeval"
-
+    "pytest"
 ]

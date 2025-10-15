@@ -1,35 +1,32 @@
 # Use a Python base image
-FROM python:3.11-slim-buster
+FROM python:3.12-slim-buster
 
 # Set working directory
 WORKDIR /app
 
-# Copy pyproject.toml and uv.lock for dependency management
-COPY pyproject.toml uv.lock ./ 
-
-# Install uv and then install dependencies
-RUN pip install uv && uv sync
+# Copy requirements and install
+COPY requirements.txt ./
+RUN python -m pip install --upgrade pip setuptools wheel && \
+	pip install -r requirements.txt
 
 # Copy the rest of the application code
 COPY . .
 
-# Expose the port for the main application (if it were a web service)
-EXPOSE 8000
+# Expose the Streamlit port
+EXPOSE 8501
 
-# Set environment variables (these will be overridden by docker-compose.yml)
+# Environment variables (overridden by docker-compose.yml)
 ENV OPENAI_API_KEY="<OPENAI_API_KEY>"
 ENV OPENAI_BASE_URL="<OPENAI_BASE_URL>"
 ENV MODEL_NAME="<MODEL_NAME>"
 ENV SUPABASE_URL="<SUPABASE_URL>"
 ENV SUPABASE_SERVICE_KEY="<SUPABASE_SERVICE_KEY>"
 ENV CORPUS_URL="<CORPUS_URL>"
-#ENV EXTERNAL_API_URL="<EXTERNAL_API_URL>"
 ENV HOTELS_API_URL="<HOTELS_API_URL>"
 ENV FLIGHTS_API_URL="<FLIGHTS_API_URL>"
 ENV LLM_JUDGE_MODEL="<LLM_JUDGE_MODEL>"
-ENV OLLAMA_BASE_URL="http://ollama:11434/v1" # Assuming Ollama runs in a separate container
+ENV OLLAMA_BASE_URL="http://ollama:11434/v1"
 ENV OLLAMA_MODEL_NAME="gemma3:4b"
 
-# Command to run the application (e.g., a FastAPI/Flask app or a script )
-# This will be overridden by the command in docker-compose.yml for specific services
-CMD ["python3.11", "src/chat.py"]
+# Command to run the Streamlit dashboard on all interfaces
+CMD ["streamlit", "run", "app.py", "--server.port", "8501", "--server.address", "0.0.0.0"]

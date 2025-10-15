@@ -93,20 +93,3 @@ st.info("Metrics for the autonomous agent (e.g., success rate, tool call latency
 # --- Self-Healing Code Assistant (Placeholder) ---
 st.header("Self-Healing Code Assistant Performance")
 st.info("Metrics for the self-healing code assistant (e.g., success rate, retry count, code quality) would be displayed here.")
-
-# --- DeepEval Reports (Placeholder) ---
-st.header("DeepEval Reports")
-st.info("DeepEval generates HTML/Markdown reports. These would be linked or embedded here.")
-
-# Example of linking to DeepEval reports
-deepeval_reports_dir = "/app/deepeval_reports" # DeepEval default output directory
-if os.path.exists(deepeval_reports_dir):
-    deepeval_html_reports = [f for f in os.listdir(deepeval_reports_dir) if f.endswith(".html")]
-    if deepeval_html_reports:
-        st.subheader("DeepEval HTML Reports")
-        for report in deepeval_html_reports:
-            st.markdown(f"- [{report}](file://{os.path.join(deepeval_reports_dir, report)})")
-    else:
-        st.write("No DeepEval HTML reports found.")
-else:
-    st.write(f"DeepEval reports directory {deepeval_reports_dir} not found.")

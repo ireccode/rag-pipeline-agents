@@ -5,16 +5,21 @@ from openai import OpenAI
 from collections import deque
 from dotenv import load_dotenv
 import tiktoken
+from utils import get_supabase_client, search_documents, estimate_cost
 
 load_dotenv() # Load environment variables from .env file
 
 # Configuration from environment variables
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") 
 OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1" )
-MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4.1-mini") # Default to a placeholder model
+# Azure deployment name is "Gpt4o", fallback to standard "gpt-4o" if not set
+MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o")
 
 # Initialize OpenAI client
-client = OpenAI(api_key=OPENAI_API_KEY, base_url=OPENAI_BASE_URL)
+client = OpenAI(
+    api_key=OPENAI_API_KEY,
+    base_url=OPENAI_BASE_URL
+)
 
 # Message persistence (SQLite)
 DB_NAME = "chat_history.db"
@@ -51,16 +56,6 @@ def get_messages():
     conn.close()
     return messages
 
-# Token and cost estimation (simplified, placeholder values)
-# These are approximate and should be updated with actual model pricing
-TOKEN_COST_INPUT_PER_1K = 0.0005  # Example for a cheap model
-TOKEN_COST_OUTPUT_PER_1K = 0.0015 # Example for a cheap model
-
-def estimate_cost(prompt_tokens, completion_tokens):
-    input_cost = (prompt_tokens / 1000) * TOKEN_COST_INPUT_PER_1K
-    output_cost = (completion_tokens / 1000) * TOKEN_COST_OUTPUT_PER_1K
-    return input_cost + output_cost
-
 def count_tokens(text, model_name=MODEL_NAME):
     try:
         encoding = tiktoken.encoding_for_model(model_name)
@@ -70,7 +65,7 @@ def count_tokens(text, model_name=MODEL_NAME):
 
 def chat_cli():
     init_db()
-    print("\nWelcome to the Streaming Chat CLI! Type 'exit' to quit.")
+    print("\nWelcome to the Streaming Chat CLI with RAG! Type 'exit' to quit.")
 
     while True:
         user_input = input("\nYou: ")
@@ -84,10 +79,20 @@ def chat_cli():
         full_response_content = ""
         prompt_tokens = sum(count_tokens(m["content"]) for m in messages)
 
+        # Use RAG to get context
+        supabase_client = get_supabase_client()
+        rag_results = search_documents(supabase_client, user_input, match_count=3)
+        if rag_results:
+            context = "\n".join([f"Context from {r['url']}: {r['content'][:500]}" for r in rag_results])
+            system_message = f"Use the following context to answer: {context}"
+            messages_with_context = [{"role": "system", "content": system_message}] + messages
+        else:
+            messages_with_context = messages
+
         try:
             stream = client.chat.completions.create(
                 model=MODEL_NAME,
-                messages=messages,
+                messages=messages_with_context,
                 stream=True,
             )
 
@@ -118,7 +123,8 @@ def chat_cli():
             # Remove the last user message if the API call fails to avoid polluting history
             conn = sqlite3.connect(DB_NAME)
             cursor = conn.cursor()
-            cursor.execute("DELETE FROM messages WHERE role = 'user' ORDER BY timestamp DESC LIMIT 1")
+            # Corrected SQL for deleting the last user message
+            cursor.execute("DELETE FROM messages WHERE id = (SELECT id FROM messages WHERE role = 'user' ORDER BY timestamp DESC LIMIT 1)")
             conn.commit()
             conn.close()
 
