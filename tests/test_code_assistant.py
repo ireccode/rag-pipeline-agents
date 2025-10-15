@@ -3,7 +3,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 os.environ['OPENAI_API_KEY'] = 'test_key'
-os.environ['OPENAI_BASE_URL'] = 'https://api.openai.com/v1'
+os.environ['OPENAI_BASE_URL'] = 'test_base_url'
 os.environ['USE_CODE_EXAMPLES'] = 'false'  # Disable RAG for tests
 
 import pytest

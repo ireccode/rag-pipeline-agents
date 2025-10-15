@@ -12,7 +12,7 @@ This repository extends the `mcp-crawl4ai-rag` project with several advanced AI 
 2.  **High-Performance Retrieval-Augmented QA (`src/crawl4ai_mcp.py`)**
     *   Web crawling and ingestion for a minimum of 50MB from a configurable `<CORPUS_URL>`.
     *   Intelligent chunking, embedding (using `sentence-transformers`), and vector storage in Supabase (or pgvector).
-    *   Configurable advanced strategies: `USE_HYBRID_SEARCH` and `USE_RERANKING`.
+    *   Configurable advanced strategies: `USE_HYBRID_SEARCH` and `USE_RERANKING` etc.
     *   QA endpoint with inline citations, aiming for ≤300ms median retrieval time.
     *   Automated QA script (`tests/test_accuracy.py`) with ≥20 graded question-answer pairs and top-5 retrieval accuracy reporting.
 
@@ -32,6 +32,28 @@ This repository extends the `mcp-crawl4ai-rag` project with several advanced AI 
     *   `docker-compose.yml` for all backend services (DB, APIs, dashboard).
     *   `src/dashboard.py` for visualizing latency/cost, retrieval curves, and agent performance.
     *   All configurations as `.env.sample` with placeholders.
+    *   Access at `http://localhost:8501` when running with Docker Compose
+
+## Tools
+
+The server provides essential web crawling and search tools:
+
+### Core Tools (Always Available)
+
+1. **`crawl_single_page`**: Quickly crawl a single web page and store its content in the vector database
+2. **`smart_crawl_url`**: Intelligently crawl a full website based on the type of URL provided (sitemap, llms-full.txt, or a regular webpage that needs to be crawled recursively)
+3. **`get_available_sources`**: Get a list of all available sources (domains) in the database
+4. **`perform_rag_query`**: Search for relevant content using semantic search with optional source filtering
+
+### Conditional Tools
+
+5. **`search_code_examples`** (requires `USE_AGENTIC_RAG=true`): Search specifically for code examples and their summaries from crawled documentation. This tool provides targeted code snippet retrieval for AI coding assistants.
+
+### Knowledge Graph Tools (requires `USE_KNOWLEDGE_GRAPH=true`, see below)
+
+6. **`parse_github_repository`**: Parse a GitHub repository into a Neo4j knowledge graph, extracting classes, methods, functions, and their relationships for hallucination detection
+7. **`check_ai_script_hallucinations`**: Analyze Python scripts for AI hallucinations by validating imports, method calls, and class usage against the knowledge graph
+8. **`query_knowledge_graph`**: Explore and query the Neo4j knowledge graph with commands like `repos`, `classes`, `methods`, and custom Cypher queries
 
 ## Getting Started
 
@@ -43,21 +65,60 @@ This repository extends the `mcp-crawl4ai-rag` project with several advanced AI 
 * OpenAI API key (for generating embeddings)
 * Neo4j (optional, for knowledge graph functionality) - see Knowledge Graph Setup section
 
-### Knowledge Graph Setup (Optional)
+## Installation
 
-#### Manual Neo4j Installation
+#### Using Docker (Recommended)
 
-Alternatively, install Neo4j directly:
+1.  **Clone the repository:**
+    To clone this project, use the following command to get the latest changes from the rag-agents branch.
+    ```bash
+    git clone -b rag-agents https://github.com/ireccode/rag-pipeline-agents.git
+    cd rag-pipeline-agents
+    ```
 
-1. **Install Neo4j Desktop:** Download from [neo4j.com/download](https://neo4j.com/download)
+2.  **Build the Docker image for crawl4ai-rag MCP server:**
+    ```bash
+    docker build -t crawl4ai-rag --build-arg PORT=8051 .
+    ```
 
-2. **Create a new database:**
+3.  **Create a `.env` file:**
+    Copy the example environment file and fill in your credentials and URLs. **Do not commit this file with actual credentials.**
+    ```bash
+    cp .env.sample .env
+    ```
+    Edit the `.env` file with your configuration (see Configuration section below).
+
+4.  **Run the server:**
+    ```bash
+    docker run --env-file .env -p 8051:8051 --rm --name rag-dev-run crawl4ai-rag
+    ```
+## Database Setup
+
+Before running the server, you need to set up the database with the pgvector extension:
+
+1. Go to the SQL Editor in your Supabase dashboard (create a new project first if necessary)
+
+2. Create a new query and paste the contents of `crawled_pages.sql`
+
+3. Run the query to create the necessary tables and functions
+
+## Knowledge Graph Setup (Optional)
+
+To enable AI hallucination detection and repository analysis features, you need to set up Neo4j.
+
+Also, the knowledge graph implementation isn't fully compatible with Docker yet, so I would recommend right now running directly through uv if you want to use the hallucination detection within the MCP server!
+
+### Manual Neo4j Installation (Optional)
+
+1. **Install Neo4j Desktop**: Download from [neo4j.com/download](https://neo4j.com/download/)
+
+2. **Create a new database**:
    - Open Neo4j Desktop
    - Create a new project and database
    - Set a password for the `neo4j` user
    - Start the database
 
-3. **Note your connection details:**
+3. **Note your connection details**:
    - URI: `bolt://localhost:7687` (default)
    - Username: `neo4j` (default)
    - Password: Whatever you set during creation
@@ -134,58 +195,6 @@ The Crawl4AI RAG MCP server supports four powerful RAG strategies that can be en
    - **Cost:** No additional API costs for validation, but requires Neo4j infrastructure (can use free local installation or cloud AuraDB).
    - **Benefits:** Provides three powerful tools: `parse_github_repository` for indexing codebases, `check_ai_script_hallucinations` for validating AI-generated code, and `query_knowledge_graph` for exploring indexed repositories.
 
-## Installation
-
-#### Using Docker (Recommended)
-
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/ireccode/rag-pipeline-agents.git
-    cd rag-pipeline-agents
-    ```
-
-2.  **Build the Docker image:**
-    ```bash
-    docker build -t rag-pipeline-agents --build-arg PORT=8051 .
-    ```
-
-3.  **Create a `.env` file:**
-    Copy the example environment file and fill in your credentials and URLs. **Do not commit this file with actual credentials.**
-    ```bash
-    cp .env.sample .env
-    ```
-    Edit the `.env` file with your configuration (see Configuration section above).
-
-4.  **Run the server:**
-    ```bash
-    docker run --env-file .env -p 8051:8051 --rm --name rag-dev-run rag-pipeline-agents
-    ```
-
-#### Manual Installation (without Docker)
-
-1.  **Install dependencies:**
-    ```bash
-    uv sync
-    ```
-
-2.  **Set up Supabase/pgvector:**
-    Ensure you have a PostgreSQL database with the `pgvector` extension enabled. You will need to create a `documents` table as described in `src/rag.py` comments.
-
-3.  **Run the server:**
-    ```bash
-    uv run src/crawl4ai_mcp.py
-    ```
-
-```ini
-OPENAI_API_KEY=
-OPENAI_BASE_URL=
-MODEL_NAME=
-SUPABASE_URL=
-SUPABASE_SERVICE_KEY=
-CORPUS_URL=
-FLIGHTS_API_URL=
-HOTELS_API_URL=
-```
 
 ### Recommended Configurations
 
@@ -257,31 +266,10 @@ Once you have the server running with SSE transport, you can connect to it using
 
 **Note for Docker users:** Use `host.docker.internal` instead of `localhost` if your client is running in a different container.
 
-## Usage
-
-### Main Application Components
-
-1. **Conversational Core (`src/chat.py`)**
-   ```bash
-   python3 src/chat.py
-   ```
-
-2. **High-Performance RAG (`src/qa_endpoint.py`)**
-   ```bash
-   python3 src/qa_endpoint.py
-   ```
-
-3. **Self-Healing Code Assistant (`src/code_assistant.py`)**
-   ```bash
-   python3 src/code_assistant.py
-   ```
-
-4. **Streamlit Dashboard**
-   Access at `http://localhost:8501` when running with Docker Compose
-
-### MCP Server
-
-The server will start and listen on the configured host and port (default: `http://localhost:8051`).
+**Note for Claude Code users**: 
+```
+claude mcp add-json crawl4ai-rag '{"type":"http","url":"http://localhost:8051/sse"}' --scope user
+```
 
 Cited from:
 https://github.com/coleam00/mcp-crawl4ai-rag

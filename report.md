@@ -33,9 +33,9 @@ This report outlines the key design decisions made during the extension of the `
 - **Chunking Strategy:** Intelligent markdown-aware chunking preserving code blocks and sections. Benefits: Better context preservation. Trade-offs: More complex than simple fixed-size chunks.
 
 **Integration Points:**
-- **Task 1 (Chat):** Provides RAG context for conversational queries via `search_documents` in `utils.py`.
-- **Task 2 (RAG QA):** Core crawling and retrieval functionality for the QA endpoint.
-- **Code Assistant:** Hallucination detection for generated code validation.
+- **Chat:** Provides RAG context for conversational queries via `search_documents` in `utils.py`.
+- **RAG QA:** Core crawling and retrieval functionality for the QA endpoint.
+- **Code Assistant:** Sample code RAG search for self-healing code assistant.
 
 **Trade-offs Summary:**
 - **Flexibility vs. Complexity:** Highly configurable but requires multiple environment variables.

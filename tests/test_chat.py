@@ -1,6 +1,6 @@
 import os
-os.environ['OPENAI_API_KEY'] = 'sk-zM2MxgXhXnusmExHx1sKyw'
-os.environ['OPENAI_BASE_URL'] = 'https://aiunifier.wonderfulrock-83cb33fd.australiaeast.azurecontainerapps.io'
+os.environ['OPENAI_API_KEY'] = 'test_key'
+os.environ['OPENAI_BASE_URL'] = 'test_base_url'
 
 import pytest
 from src.chat import chat_cli, count_tokens, estimate_cost
