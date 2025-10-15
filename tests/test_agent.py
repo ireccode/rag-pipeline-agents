@@ -2,9 +2,6 @@ import os
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-os.environ['OPENAI_API_KEY'] = 'test_key'
-os.environ['OPENAI_BASE_URL'] = 'test_base_url'
-
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 from agent import AutonomousAgent, ExternalTool, available_tools

@@ -1,6 +1,6 @@
 import os
-os.environ['OPENAI_API_KEY'] = 'test_key'
-os.environ['OPENAI_BASE_URL'] = 'test_base_url'
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 import pytest
 from src.chat import chat_cli, count_tokens, estimate_cost
