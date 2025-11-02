@@ -1,0 +1,47 @@
+# Rename this file to 'terraform.tfvars' and fill in the values before running 'terraform apply'.
+
+# --- Required Variables ---
+# The password for the Neo4j EC2 instance setup (used in Lambda environment)
+# neo4j_password = "a_secure_neo4j_password"
+
+# The name of an existing EC2 Key Pair in your AWS account for the Neo4j instance
+# key_name = "your-ssh-key-name"
+
+# --- New Aurora Variables ---
+# The master password for the Aurora PostgreSQL database
+db_master_password = "a_secure_aurora_password"
+
+# The master username for the Aurora PostgreSQL database
+db_username = "crawl4aiadmin"
+
+# The name of the database to be created
+db_name = "crawl4ai"
+
+
+# --- New Application Configuration Variables ---
+# The OpenAI API key
+# openai_api_key = "your_openai_api_key"
+
+# The URL of the corpus to crawl
+# corpus_url = "https://docs.aws.amazon.com/index.html"
+
+# The URL of the flights API for the agent
+# flights_api_url = "http://mock-flights-api.com"
+
+# The URL of the hotels API for the agent
+# hotels_api_url = "http://mock-hotels-api.com"
+
+# The LLM to use for summaries and contextual embeddings
+# model_choice = "gpt-4.1-nano"
+
+# RAG Strategies (set to "true" or "false")
+# use_contextual_embeddings = "false"
+# use_hybrid_search = "false"
+# use_agentic_rag = "false"
+# use_reranking = "false"
+# use_knowledge_graph = "true"
+
+
+
+# use_code_examples = "false"
+
